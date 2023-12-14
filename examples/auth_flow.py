@@ -1,25 +1,39 @@
-# examples/auth_flow.py
+import asyncio
+import os
 
 from refinery.kratos.client import KratosClient
 from refinery.oathkeeper.client import OathkeeperClient
 
-# Example usage (replace with actual values)
-kratos_client = KratosClient(kratos_url='http://localhost:4433')
-oathkeeper_client = OathkeeperClient(oathkeeper_url='http://localhost:4456')  # Updated URL
 
-user_id = 'user123'
-session_token = 'sessionToken123'
-resource = 'protected-resource'
-action = 'read'
+async def main():
+    kratos_admin_url = os.getenv("KRATOS_ADMIN_URL", "http://localhost:4434")
+    oathkeeper_url = os.getenv("OATHKEEPER_URL", "http://localhost:4456")
 
-# Validate session with Kratos
-#user = kratos_client.get_user(user_id)
-#is_session_valid = kratos_client.validate_session(session_token)
+    kratos_client = KratosClient(kratos_admin_url)
+    oathkeeper_client = OathkeeperClient(oathkeeper_url)
 
-# Check authorization with Oathkeeper
-is_authorized = oathkeeper_client.is_authorized(session_token, resource, action)
+    # Example: Validate a Kratos session
+    session_token = "your_session_token"  # Replace with a real session token
+    try:
+        session = await kratos_client.get_session(session_token)
+        print(f"Session is valid for user: {session.identity.id}")
+    except Exception as e:
+        print(f"Session validation failed: {e}")
 
-if is_authorized:
-    print('User is authorized.')
-else:
-    print('User is not authorized.')
+    # Example: Check access using Oathkeeper
+    access_token = "your_access_token" # Replace with a valid access token or omit if using cookies
+    subject = "your_subject"  # Usually the user ID
+    access_url = os.getenv("ACCESS_URL", "http://localhost:4455/protected")  # Adjust as needed.
+
+    try:
+        decision = await oathkeeper_client.decide(access_url, subject, token=access_token)
+        if decision:
+            print("Access GRANTED")
+        else:
+            print("Access DENIED")
+    except Exception as e:
+        print(f"Access request failed: {e}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
