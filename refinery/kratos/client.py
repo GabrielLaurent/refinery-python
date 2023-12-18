@@ -1,47 +1,24 @@
-import requests
-import os
-
-from typing import Optional
-
+import ory_kratos_client
+from ory_kratos_client.api import identity_api
+from refinery.cache.cache_manager import CacheManager
 
 class KratosClient:
-    def __init__(self, kratos_admin_url: str = None):
-        self.kratos_admin_url = kratos_admin_url or os.environ.get("KRATOS_ADMIN_URL")
-        if not self.kratos_admin_url:
-            raise ValueError("Kratos Admin URL is required.")
+    def __init__(self, kratos_url, cache_expiration=60):
+        self.kratos_url = kratos_url
+        self.configuration = ory_kratos_client.Configuration(host=kratos_url)
+        self.api_client = ory_kratos_client.ApiClient(self.configuration)
+        self.identity_api = identity_api.IdentityApi(self.api_client)
+        self.cache_manager = CacheManager(default_expiration=cache_expiration)
 
-        self.session = requests.Session()
-        self.session.headers.update({"Content-Type": "application/json"})
+    def get_identity(self, identity_id):
+        cached_identity = self.cache_manager.get(identity_id)
+        if cached_identity:
+            return cached_identity
 
-    def get_user(self, session_token: str = None, user_id: str = None) -> Optional[dict]:
-        """Retrieves user information from Kratos based on a session token or user ID.
-
-        Args:
-            session_token: The Kratos session token.
-            user_id: The Kratos user ID.
-
-        Returns:
-            A dictionary containing the user's identity data, or None if not found.
-        """
-        if session_token:
-            try:
-                response = self.session.get(
-                    f"{self.kratos_admin_url}/sessions/whoami",
-                    headers={"Cookie": f"ory_kratos_session={session_token}"},
-                )
-                response.raise_for_status()
-                return response.json()
-            except requests.exceptions.RequestException as e:
-                print(f"Error retrieving user by session token: {e}")
-                return None
-        elif user_id:
-            try:
-                response = self.session.get(f"{self.kratos_admin_url}/identities/{user_id}")
-                response.raise_for_status()
-                return response.json()
-            except requests.exceptions.RequestException as e:
-                print(f"Error retrieving user by user ID: {e}")
-                return None
-        else:
-            print("Either session_token or user_id must be provided.")
+        try:
+            api_response = self.identity_api.get_identity(id=identity_id)
+            self.cache_manager.set(identity_id, api_response)
+            return api_response
+        except ory_kratos_client.ApiException as e:
+            print(f"Exception when calling IdentityApi->get_identity: {e}\n")
             return None
