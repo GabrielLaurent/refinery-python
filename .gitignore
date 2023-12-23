@@ -1,50 +1,5 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/*
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-dist/
-downloads/
-*.egg-info/
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.coverage
-.cache
-nosetests.xml
-
-# Translations
-*.mo
-*.pot
-
-# Jupyter notebook checkpoints
-.ipynb_checkpoints
-
-# IPython history file
-ipython_log.py
-
-# dotenv
-.env
-
-# OS generated files #操作系统生成的文件
-.DS_Store
-Thumbs.db
-
-#Visual Studio Code
-.vscode/
-
-# private documents
+private_doc/
 private_doc/*
+.DS_Store
 *.pyc
 __pycache__/
