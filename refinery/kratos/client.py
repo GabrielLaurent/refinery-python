@@ -1,40 +1,47 @@
-import httpx
+import requests
+import os
+
+from typing import Optional
+
 
 class KratosClient:
-    def __init__(self, kratos_admin_url):
-        self.kratos_admin_url = kratos_admin_url
-        self.client = httpx.AsyncClient(base_url=self.kratos_admin_url)
+    def __init__(self, kratos_admin_url: str = None):
+        self.kratos_admin_url = kratos_admin_url or os.environ.get("KRATOS_ADMIN_URL")
+        if not self.kratos_admin_url:
+            raise ValueError("Kratos Admin URL is required.")
 
-    async def validate_session(self, session_token: str) -> dict:
-        """Validates a Kratos session using the session token.
+        self.session = requests.Session()
+        self.session.headers.update({"Content-Type": "application/json"})
+
+    def get_user(self, session_token: str = None, user_id: str = None) -> Optional[dict]:
+        """Retrieves user information from Kratos based on a session token or user ID.
 
         Args:
             session_token: The Kratos session token.
+            user_id: The Kratos user ID.
 
         Returns:
-            A dictionary containing session information if the session is valid.
-
-        Raises:
-            httpx.HTTPStatusError: If the Kratos Admin API returns an error.
-            Exception: If any other error occurs during session validation.
+            A dictionary containing the user's identity data, or None if not found.
         """
-        url = "/sessions/whoami"
-        headers = {"Cookie": f"ory_kratos_session={session_token}"}
-        try:
-            response = await self.client.get(url, headers=headers)
-            response.raise_for_status()  # Raise HTTPStatusError for bad responses (4xx or 5xx)
-            return response.json()
-        except httpx.HTTPStatusError as e:
-            # Handle specific HTTP errors from Kratos
-            print(f"Kratos session validation error: {e}") # Add logging
-            raise  # Re-raise the exception to be handled by the caller
-        except Exception as e:
-            print(f"An unexpected error occurred during Kratos session validation: {e}") # Add logging
-            raise Exception(f"Failed to validate Kratos session: {e}") from e
-
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.client.aclose()
+        if session_token:
+            try:
+                response = self.session.get(
+                    f"{self.kratos_admin_url}/sessions/whoami",
+                    headers={"Cookie": f"ory_kratos_session={session_token}"},
+                )
+                response.raise_for_status()
+                return response.json()
+            except requests.exceptions.RequestException as e:
+                print(f"Error retrieving user by session token: {e}")
+                return None
+        elif user_id:
+            try:
+                response = self.session.get(f"{self.kratos_admin_url}/identities/{user_id}")
+                response.raise_for_status()
+                return response.json()
+            except requests.exceptions.RequestException as e:
+                print(f"Error retrieving user by user ID: {e}")
+                return None
+        else:
+            print("Either session_token or user_id must be provided.")
+            return None
